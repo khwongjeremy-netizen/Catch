@@ -1,0 +1,774 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Catch</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0e0e0e;
+      --surface:  #161616;
+      --border:   #2a2a2a;
+      --border2:  #333;
+      --text:     #e8e8e4;
+      --muted:    #666;
+      --accent:   #d4f54e;
+      --accent2:  #a8c23a;
+      --danger:   #ff5f5f;
+      --radius:   10px;
+      --mono:     'DM Mono', monospace;
+      --sans:     'DM Sans', sans-serif;
+    }
+
+    html, body { height: 100%; background: var(--bg); color: var(--text); font-family: var(--sans); }
+
+    /* ── layout ── */
+    .app { display: none; flex-direction: column; height: 100vh; }
+    .app.visible { display: flex; }
+
+    /* ── nav ── */
+    nav {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 24px; height: 52px;
+      border-bottom: 1px solid var(--border);
+      background: var(--bg); position: sticky; top: 0; z-index: 10;
+    }
+    .nav-logo { font-family: var(--mono); font-size: 15px; font-weight: 500; letter-spacing: -.5px; color: var(--accent); }
+    .nav-links { display: flex; gap: 4px; }
+    .nav-link {
+      padding: 6px 12px; border-radius: 6px; font-size: 13px;
+      color: var(--muted); cursor: pointer; transition: all .15s;
+      background: none; border: none; font-family: var(--sans);
+    }
+    .nav-link:hover { color: var(--text); background: var(--surface); }
+    .nav-link.active { color: var(--text); background: var(--surface); }
+    .nav-user { font-size: 12px; font-family: var(--mono); color: var(--muted); display: flex; align-items: center; gap: 8px; }
+    .nav-avatar {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: var(--surface); border: 1px solid var(--border2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 500; color: var(--accent);
+    }
+
+    /* ── pages ── */
+    .page { display: none; flex: 1; overflow-y: auto; padding: 32px 24px; max-width: 720px; margin: 0 auto; width: 100%; }
+    .page.active { display: block; }
+
+    /* ── landing ── */
+    #landing {
+      display: flex; flex-direction: column; align-items: center;
+      justify-content: center; min-height: 100vh;
+      padding: 40px 24px; text-align: center;
+    }
+    .landing-tag {
+      font-family: var(--mono); font-size: 11px; color: var(--accent);
+      letter-spacing: .1em; text-transform: uppercase;
+      margin-bottom: 24px; opacity: 0;
+      animation: fadeUp .5s ease forwards;
+    }
+    .landing-title {
+      font-size: clamp(48px, 10vw, 88px); font-weight: 300;
+      line-height: 1; letter-spacing: -3px; color: var(--text);
+      margin-bottom: 20px; opacity: 0;
+      animation: fadeUp .5s ease .1s forwards;
+    }
+    .landing-title span { color: var(--accent); }
+    .landing-sub {
+      font-size: 16px; color: var(--muted); max-width: 380px;
+      line-height: 1.6; margin-bottom: 40px; opacity: 0;
+      animation: fadeUp .5s ease .2s forwards;
+    }
+    .landing-actions { display: flex; gap: 12px; opacity: 0; animation: fadeUp .5s ease .3s forwards; }
+
+    /* ── buttons ── */
+    .btn {
+      padding: 10px 20px; border-radius: var(--radius); font-size: 13px;
+      font-family: var(--sans); font-weight: 500; cursor: pointer;
+      transition: all .15s; border: 1px solid transparent;
+    }
+    .btn-primary { background: var(--accent); color: #0e0e0e; border-color: var(--accent); }
+    .btn-primary:hover { background: var(--accent2); border-color: var(--accent2); }
+    .btn-ghost { background: transparent; color: var(--text); border-color: var(--border2); }
+    .btn-ghost:hover { background: var(--surface); border-color: var(--border); }
+    .btn-danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+    .btn-danger:hover { background: rgba(255,95,95,.08); }
+    .btn-sm { padding: 7px 14px; font-size: 12px; }
+    .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+    /* ── auth modal ── */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+      z-index: 100; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 14px; padding: 28px; width: 100%; max-width: 380px;
+      animation: fadeUp .2s ease;
+    }
+    .modal-title { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+    .modal-sub { font-size: 13px; color: var(--muted); margin-bottom: 24px; }
+    .modal-tabs { display: flex; gap: 4px; margin-bottom: 20px; background: var(--bg); border-radius: 8px; padding: 3px; }
+    .modal-tab {
+      flex: 1; padding: 7px; border-radius: 6px; font-size: 13px;
+      text-align: center; cursor: pointer; color: var(--muted);
+      transition: all .15s; background: none; border: none; font-family: var(--sans);
+    }
+    .modal-tab.active { background: var(--surface); color: var(--text); }
+
+    /* ── forms ── */
+    .field { margin-bottom: 14px; }
+    .field label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-family: var(--mono); }
+    .field input, .field textarea {
+      width: 100%; background: var(--bg); border: 1px solid var(--border2);
+      border-radius: 8px; padding: 10px 12px; font-size: 14px;
+      color: var(--text); font-family: var(--sans); outline: none;
+      transition: border-color .15s;
+    }
+    .field input:focus, .field textarea:focus { border-color: var(--accent); }
+    .field textarea { resize: vertical; min-height: 80px; }
+
+    /* ── cards ── */
+    .card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); padding: 16px 18px; margin-bottom: 10px;
+      transition: border-color .15s;
+    }
+    .card:hover { border-color: var(--border2); }
+    .card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+    .card-title { font-size: 14px; font-weight: 500; }
+    .card-sub { font-size: 12px; color: var(--muted); font-family: var(--mono); }
+
+    /* ── page headers ── */
+    .page-header { margin-bottom: 28px; }
+    .page-title { font-size: 22px; font-weight: 400; letter-spacing: -.5px; margin-bottom: 4px; }
+    .page-desc { font-size: 13px; color: var(--muted); }
+
+    /* ── section ── */
+    .section { margin-bottom: 32px; }
+    .section-label {
+      font-size: 11px; font-family: var(--mono); color: var(--muted);
+      text-transform: uppercase; letter-spacing: .08em;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .section-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+    /* ── badges ── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 8px; border-radius: 99px; font-size: 11px;
+      font-family: var(--mono);
+    }
+    .badge-green { background: rgba(212,245,78,.12); color: var(--accent); }
+    .badge-gray { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+    .badge-red { background: rgba(255,95,95,.1); color: var(--danger); }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    /* ── empty state ── */
+    .empty {
+      text-align: center; padding: 48px 24px;
+      color: var(--muted); font-size: 13px; border: 1px dashed var(--border);
+      border-radius: var(--radius);
+    }
+    .empty-icon { font-size: 28px; margin-bottom: 12px; opacity: .5; }
+
+    /* ── toast ── */
+    .toast {
+      position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--surface); border: 1px solid var(--border2);
+      border-radius: 8px; padding: 10px 16px; font-size: 13px;
+      z-index: 200; transition: transform .25s ease; white-space: nowrap;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--accent); color: var(--accent); }
+    .toast.error { border-color: var(--danger); color: var(--danger); }
+
+    /* ── invite code ── */
+    .invite-box {
+      background: var(--bg); border: 1px solid var(--border);
+      border-radius: 8px; padding: 12px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      margin-top: 10px;
+    }
+    .invite-code { font-family: var(--mono); font-size: 18px; letter-spacing: .15em; color: var(--accent); }
+
+    /* ── progress bar ── */
+    .progress-wrap { margin-top: 10px; }
+    .progress-label { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); font-family: var(--mono); margin-bottom: 6px; }
+    .progress-bar { height: 3px; background: var(--border); border-radius: 99px; overflow: hidden; }
+    .progress-fill { height: 100%; background: var(--accent); border-radius: 99px; transition: width .4s ease; }
+
+    /* ── nudge image grid ── */
+    .img-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
+    .img-option {
+      aspect-ratio: 1; border-radius: 8px; cursor: pointer;
+      border: 2px solid transparent; overflow: hidden;
+      background: var(--bg); display: flex; align-items: center;
+      justify-content: center; font-size: 32px;
+      transition: border-color .15s;
+    }
+    .img-option:hover { border-color: var(--border2); }
+    .img-option.selected { border-color: var(--accent); }
+
+    /* ── member row ── */
+    .member-row { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid var(--border); }
+    .member-row:last-child { border-bottom: none; }
+    .member-avatar {
+      width: 32px; height: 32px; border-radius: 50%;
+      background: var(--bg); border: 1px solid var(--border2);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 500; color: var(--accent); flex-shrink: 0;
+    }
+    .member-name { font-size: 14px; flex: 1; }
+    .member-status { font-size: 12px; font-family: var(--mono); }
+
+    /* ── divider ── */
+    .divider { height: 1px; background: var(--border); margin: 20px 0; }
+
+    /* ── util ── */
+    .flex { display: flex; }
+    .flex-between { display: flex; align-items: center; justify-content: space-between; }
+    .gap-8 { gap: 8px; }
+    .mt-8 { margin-top: 8px; }
+    .mt-16 { margin-top: 16px; }
+    .text-muted { color: var(--muted); font-size: 13px; }
+    .text-mono { font-family: var(--mono); }
+    .text-accent { color: var(--accent); }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── Landing ── -->
+<div id="landing">
+  <div class="landing-tag">your productivity, made social</div>
+  <h1 class="landing-title">catch<span>.</span></h1>
+  <p class="landing-sub">Catch up on work. Catch your friends slacking. Catch up over food when you're all done.</p>
+  <div class="landing-actions">
+    <button class="btn btn-primary" onclick="openAuth('signup')">Get started</button>
+    <button class="btn btn-ghost" onclick="openAuth('login')">Sign in</button>
+  </div>
+</div>
+
+<!-- ── Auth Modal ── -->
+<div class="modal-overlay" id="auth-modal">
+  <div class="modal">
+    <div class="modal-tabs">
+      <button class="modal-tab active" id="tab-login" onclick="switchTab('login')">Sign in</button>
+      <button class="modal-tab" id="tab-signup" onclick="switchTab('signup')">Sign up</button>
+    </div>
+    <div id="auth-login">
+      <div class="field"><label>Username</label><input type="text" id="login-username" placeholder="your username"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="login()">Sign in</button>
+    </div>
+    <div id="auth-signup" style="display:none">
+      <div class="field"><label>Choose a username</label><input type="text" id="signup-username" placeholder="e.g. alex_catches"></div>
+      <button class="btn btn-primary" style="width:100%" onclick="signup()">Create account</button>
+    </div>
+    <button class="btn btn-ghost btn-sm" style="width:100%;margin-top:8px" onclick="closeAuth()">Cancel</button>
+  </div>
+</div>
+
+<!-- ── Main App ── -->
+<div class="app" id="app">
+  <nav>
+    <div class="nav-logo">catch.</div>
+    <div class="nav-links">
+      <button class="nav-link active" id="nav-groups" onclick="showPage('groups')">Groups</button>
+      <button class="nav-link" id="nav-goals" onclick="showPage('goals')">Goals</button>
+      <button class="nav-link" id="nav-nudges" onclick="showPage('nudges')">Nudges</button>
+    </div>
+    <div class="nav-user">
+      <div class="nav-avatar" id="nav-avatar">?</div>
+      <span id="nav-username"></span>
+    </div>
+  </nav>
+
+  <!-- Groups page -->
+  <div class="page active" id="page-groups">
+    <div class="page-header">
+      <div class="flex-between">
+        <div>
+          <div class="page-title">Groups</div>
+          <div class="page-desc">Create or join a group to get started</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Create a group</div>
+      <div class="card">
+        <div class="field"><label>Group name</label><input type="text" id="group-name" placeholder="e.g. Study Squad"></div>
+        <button class="btn btn-primary btn-sm" onclick="createGroup()">Create group</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Join a group</div>
+      <div class="card">
+        <div class="field"><label>Invite code</label><input type="text" id="invite-input" placeholder="e.g. AB12CD34" style="text-transform:uppercase;font-family:var(--mono);letter-spacing:.1em"></div>
+        <button class="btn btn-ghost btn-sm" onclick="joinGroup()">Join group</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Your groups</div>
+      <div id="groups-list"><div class="empty"><div class="empty-icon">○</div>No groups yet — create one above</div></div>
+    </div>
+  </div>
+
+  <!-- Goals page -->
+  <div class="page" id="page-goals">
+    <div class="page-header">
+      <div class="page-title">Goals</div>
+      <div class="page-desc">Set a goal and go active — your group can see you working</div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Set a new goal</div>
+      <div class="card">
+        <div class="field">
+          <label>Which group?</label>
+          <select id="goal-group" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);font-family:var(--sans);outline:none">
+            <option value="">Select a group...</option>
+          </select>
+        </div>
+        <div class="field"><label>What are you working on?</label><input type="text" id="goal-desc" placeholder="e.g. Finish essay intro"></div>
+        <button class="btn btn-primary btn-sm" onclick="setGoal()">I'm starting — go active</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Active goals</div>
+      <div id="goals-list"><div class="empty"><div class="empty-icon">○</div>No active goals yet</div></div>
+    </div>
+  </div>
+
+  <!-- Nudges page -->
+  <div class="page" id="page-nudges">
+    <div class="page-header">
+      <div class="flex-between">
+        <div>
+          <div class="page-title">Nudges</div>
+          <div class="page-desc">Poke your friends to get off their phone and work</div>
+        </div>
+        <div id="nudge-badge" style="display:none">
+          <span class="badge badge-red"><span class="dot"></span><span id="nudge-count">0</span> new</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Send a nudge</div>
+      <div class="card">
+        <div class="field">
+          <label>Which group?</label>
+          <select id="nudge-group" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);font-family:var(--sans);outline:none" onchange="loadGroupMembers()">
+            <option value="">Select a group...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Who to nudge?</label>
+          <select id="nudge-target" style="width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:8px;padding:10px 12px;font-size:14px;color:var(--text);font-family:var(--sans);outline:none">
+            <option value="">Select a friend...</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Pick a reaction</label>
+          <div class="img-grid" id="emoji-grid">
+            <div class="img-option" data-url="😴" onclick="selectEmoji(this)">😴</div>
+            <div class="img-option" data-url="📱" onclick="selectEmoji(this)">📱</div>
+            <div class="img-option" data-url="🐌" onclick="selectEmoji(this)">🐌</div>
+            <div class="img-option" data-url="🦥" onclick="selectEmoji(this)">🦥</div>
+            <div class="img-option" data-url="👀" onclick="selectEmoji(this)">👀</div>
+            <div class="img-option" data-url="⏰" onclick="selectEmoji(this)">⏰</div>
+          </div>
+        </div>
+        <div class="field"><label>Caption (optional)</label><input type="text" id="nudge-caption" placeholder="e.g. get off TikTok!!"></div>
+        <button class="btn btn-primary btn-sm" onclick="sendNudge()">Send nudge</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-label">Your inbox</div>
+      <div id="nudges-inbox"><div class="empty"><div class="empty-icon">○</div>No nudges yet — you're safe... for now</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+const API = 'http://localhost:5000';
+let currentUser = null;
+let selectedEmoji = null;
+let userGroups = [];
+
+// ── Auth ──────────────────────────────────────────────────────
+function openAuth(tab) {
+  document.getElementById('auth-modal').classList.add('open');
+  switchTab(tab);
+}
+function closeAuth() {
+  document.getElementById('auth-modal').classList.remove('open');
+}
+function switchTab(tab) {
+  document.getElementById('auth-login').style.display  = tab === 'login'  ? 'block' : 'none';
+  document.getElementById('auth-signup').style.display = tab === 'signup' ? 'block' : 'none';
+  document.getElementById('tab-login').classList.toggle('active',  tab === 'login');
+  document.getElementById('tab-signup').classList.toggle('active', tab === 'signup');
+}
+
+function signup() {
+  const username = document.getElementById('signup-username').value.trim();
+  if (!username) return toast('Enter a username', 'error');
+  const userId = 'user_' + username.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now().toString(36);
+  localStorage.setItem('catch_user', JSON.stringify({ id: userId, username }));
+  loginUser({ id: userId, username });
+  toast('Welcome to Catch, ' + username + '!', 'success');
+}
+
+function login() {
+  const username = document.getElementById('login-username').value.trim();
+  if (!username) return toast('Enter your username', 'error');
+  const saved = JSON.parse(localStorage.getItem('catch_user') || 'null');
+  if (saved && saved.username === username) {
+    loginUser(saved);
+    toast('Welcome back, ' + username, 'success');
+  } else {
+    toast('Username not found — sign up instead', 'error');
+  }
+}
+
+function loginUser(user) {
+  currentUser = user;
+  closeAuth();
+  document.getElementById('landing').style.display = 'none';
+  document.getElementById('app').classList.add('visible');
+  document.getElementById('nav-username').textContent = user.username;
+  document.getElementById('nav-avatar').textContent = user.username[0].toUpperCase();
+  loadGroups();
+  loadGoals();
+  loadInbox();
+}
+
+// Check if already logged in
+window.addEventListener('DOMContentLoaded', () => {
+  const saved = JSON.parse(localStorage.getItem('catch_user') || 'null');
+  if (saved) loginUser(saved);
+});
+
+// ── Navigation ────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+  document.getElementById('page-' + name).classList.add('active');
+  document.getElementById('nav-' + name).classList.add('active');
+  if (name === 'nudges') loadInbox();
+  if (name === 'goals') loadGoals();
+}
+
+// ── Groups ────────────────────────────────────────────────────
+async function createGroup() {
+  const name = document.getElementById('group-name').value.trim();
+  if (!name) return toast('Enter a group name', 'error');
+  try {
+    const res = await fetch(API + '/groups/create', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, created_by: currentUser.id })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById('group-name').value = '';
+    toast('Group created!', 'success');
+    loadGroups();
+  } catch(e) { toast(e.message || 'Error creating group', 'error'); }
+}
+
+async function joinGroup() {
+  const code = document.getElementById('invite-input').value.trim().toUpperCase();
+  if (!code) return toast('Enter an invite code', 'error');
+  try {
+    const res = await fetch(API + '/groups/join', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ invite_code: code, user_id: currentUser.id })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById('invite-input').value = '';
+    toast(data.message, 'success');
+    loadGroups();
+  } catch(e) { toast(e.message || 'Invalid code', 'error'); }
+}
+
+async function loadGroups() {
+  try {
+    const res = await fetch(API + '/groups/user/' + currentUser.id);
+    const data = await res.json();
+    userGroups = data.groups || [];
+    renderGroups(userGroups);
+    populateGroupSelects(userGroups);
+  } catch(e) { console.error(e); }
+}
+
+function renderGroups(groups) {
+  const el = document.getElementById('groups-list');
+  if (!groups.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">○</div>No groups yet — create one above</div>';
+    return;
+  }
+  el.innerHTML = groups.map(g => {
+    const group = g.groups || g;
+    return `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${group.name}</div>
+          <div class="card-sub">${group.invite_code}</div>
+        </div>
+        <span class="badge badge-green"><span class="dot"></span>active</span>
+      </div>
+      <div class="invite-box">
+        <div>
+          <div style="font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:4px">INVITE CODE</div>
+          <div class="invite-code">${group.invite_code}</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="copyCode('${group.invite_code}')">Copy</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function populateGroupSelects(groups) {
+  const selects = ['goal-group', 'nudge-group'];
+  selects.forEach(id => {
+    const sel = document.getElementById(id);
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Select a group...</option>' +
+      groups.map(g => {
+        const group = g.groups || g;
+        return `<option value="${group.id}">${group.name}</option>`;
+      }).join('');
+    if (current) sel.value = current;
+  });
+}
+
+function copyCode(code) {
+  navigator.clipboard.writeText(code).then(() => toast('Copied ' + code, 'success'));
+}
+
+// ── Goals ─────────────────────────────────────────────────────
+async function setGoal() {
+  const group_id = document.getElementById('goal-group').value;
+  const description = document.getElementById('goal-desc').value.trim();
+  if (!group_id) return toast('Select a group', 'error');
+  if (!description) return toast('What are you working on?', 'error');
+  try {
+    const res = await fetch(API + '/goals/set', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id, group_id, description })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById('goal-desc').value = '';
+    toast("You're active — let's go!", 'success');
+    loadGoals();
+  } catch(e) { toast(e.message || 'Error setting goal', 'error'); }
+}
+
+async function loadGoals() {
+  if (!userGroups.length) return;
+  const el = document.getElementById('goals-list');
+  let allGoals = [];
+  for (const g of userGroups) {
+    const group = g.groups || g;
+    try {
+      const res = await fetch(API + '/goals/group/' + group.id);
+      const data = await res.json();
+      allGoals = allGoals.concat((data.goals || []).map(goal => ({ ...goal, groupName: group.name })));
+    } catch(e) {}
+  }
+  if (!allGoals.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-icon">○</div>No active goals yet</div>';
+    return;
+  }
+  const active = allGoals.filter(g => g.status === 'active');
+  const done   = allGoals.filter(g => g.status === 'done');
+  let html = '';
+  if (active.length) {
+    html += active.map(g => `
+    <div class="card">
+      <div class="card-header">
+        <div>
+          <div class="card-title">${g.description}</div>
+          <div class="card-sub">${g.groupName} · ${g.user_id === currentUser.id ? 'you' : g.user_id}</div>
+        </div>
+        <span class="badge badge-green"><span class="dot"></span>active</span>
+      </div>
+      ${g.user_id === currentUser.id ? `<button class="btn btn-primary btn-sm mt-8" onclick="completeGoal('${g.id}')">Mark done ✓</button>` : ''}
+    </div>`).join('');
+  }
+  if (done.length) {
+    html += `<div class="section-label" style="margin-top:20px">Completed</div>`;
+    html += done.slice(0,5).map(g => `
+    <div class="card" style="opacity:.6">
+      <div class="card-header">
+        <div class="card-title" style="text-decoration:line-through;color:var(--muted)">${g.description}</div>
+        <span class="badge badge-gray">done</span>
+      </div>
+    </div>`).join('');
+  }
+  el.innerHTML = html;
+}
+
+async function completeGoal(goalId) {
+  try {
+    const res = await fetch(API + '/goals/' + goalId + '/complete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    if (data.group_all_done) {
+      toast('🎉 Everyone is done — time to catch up over food!', 'success');
+    } else {
+      toast('Goal complete!', 'success');
+    }
+    loadGoals();
+  } catch(e) { toast(e.message || 'Error', 'error'); }
+}
+
+// ── Nudges ────────────────────────────────────────────────────
+function selectEmoji(el) {
+  document.querySelectorAll('.img-option').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedEmoji = el.dataset.url;
+}
+
+async function loadGroupMembers() {
+  const groupId = document.getElementById('nudge-group').value;
+  const sel = document.getElementById('nudge-target');
+  sel.innerHTML = '<option value="">Select a friend...</option>';
+  if (!groupId) return;
+  try {
+    const res = await fetch(API + '/groups/' + groupId + '/members');
+    const data = await res.json();
+    const others = (data.members || []).filter(m => m.user_id !== currentUser.id);
+    others.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.user_id;
+      opt.textContent = m.user_id.replace('user_', '').split('_').slice(0,-1).join(' ');
+      sel.appendChild(opt);
+    });
+    if (!others.length) sel.innerHTML = '<option value="">No other members yet</option>';
+  } catch(e) {}
+}
+
+async function sendNudge() {
+  const group_id   = document.getElementById('nudge-group').value;
+  const to_user_id = document.getElementById('nudge-target').value;
+  const caption    = document.getElementById('nudge-caption').value.trim();
+  if (!group_id)   return toast('Select a group', 'error');
+  if (!to_user_id) return toast('Select a friend to nudge', 'error');
+  if (!selectedEmoji) return toast('Pick a reaction', 'error');
+  try {
+    const res = await fetch(API + '/nudges/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        from_user_id: currentUser.id,
+        to_user_id, group_id,
+        image_url: selectedEmoji,
+        caption
+      })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    document.getElementById('nudge-caption').value = '';
+    document.querySelectorAll('.img-option').forEach(e => e.classList.remove('selected'));
+    selectedEmoji = null;
+    toast('Nudge sent!', 'success');
+  } catch(e) { toast(e.message || 'Error sending nudge', 'error'); }
+}
+
+async function loadInbox() {
+  if (!currentUser) return;
+  try {
+    const res = await fetch(API + '/nudges/inbox/' + currentUser.id);
+    const data = await res.json();
+    const nudges = data.nudges || [];
+    const el = document.getElementById('nudges-inbox');
+    const badge = document.getElementById('nudge-badge');
+    const count = document.getElementById('nudge-count');
+    if (nudges.length) {
+      badge.style.display = 'block';
+      count.textContent = nudges.length;
+      el.innerHTML = nudges.map(n => `
+      <div class="card">
+        <div class="card-header">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="font-size:36px">${n.image_url}</div>
+            <div>
+              <div class="card-title">${n.caption || 'Get back to work!'}</div>
+              <div class="card-sub">from ${n.from_user_id.replace('user_','').split('_').slice(0,-1).join(' ')} · ${timeAgo(n.sent_at)}</div>
+            </div>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="markSeen('${n.id}', this)">Dismiss</button>
+        </div>
+      </div>`).join('');
+    } else {
+      badge.style.display = 'none';
+      el.innerHTML = '<div class="empty"><div class="empty-icon">○</div>No nudges yet — you\'re safe... for now</div>';
+    }
+  } catch(e) {}
+}
+
+async function markSeen(nudgeId, btn) {
+  try {
+    await fetch(API + '/nudges/' + nudgeId + '/seen', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: currentUser.id })
+    });
+    btn.closest('.card').remove();
+    loadInbox();
+  } catch(e) {}
+}
+
+// ── Utils ─────────────────────────────────────────────────────
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + type;
+  setTimeout(() => el.classList.remove('show'), 2800);
+}
+
+function timeAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'just now';
+  if (m < 60) return m + 'm ago';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + 'h ago';
+  return Math.floor(h / 24) + 'd ago';
+}
+
+// Poll for new nudges every 30 seconds
+setInterval(() => { if (currentUser) loadInbox(); }, 30000);
+</script>
+</body>
+</html>
